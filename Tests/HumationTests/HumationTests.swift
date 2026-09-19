@@ -1,4 +1,5 @@
 import CoreGraphics
+import Foundation
 import XCTest
 
 @testable import Humation
@@ -133,6 +134,74 @@ final class HumationTests: XCTestCase {
     func testFacadeProducesImage() {
         XCTAssertNotNil(Humation.cgImage(seed: "facade", pixels: 96))
         XCTAssertNotNil(Humation.resolved(seed: "facade"))
+    }
+
+    // MARK: Path parser (quadratic)
+
+    func testQuadraticAbsoluteAndRelativeShareBoundingBox() {
+        let absolute = HumationPathParser.path(from: "M0 0 Q10 0 10 10")
+        let relative = HumationPathParser.path(from: "m0 0 q10 0 10 10")
+        XCTAssertEqual(absolute.boundingBox, relative.boundingBox)
+        XCTAssertEqual(absolute.boundingBox.origin.x, 0, accuracy: 0.001)
+        XCTAssertEqual(absolute.boundingBox.origin.y, 0, accuracy: 0.001)
+        XCTAssertEqual(absolute.boundingBox.width, 10, accuracy: 0.001)
+        XCTAssertEqual(absolute.boundingBox.height, 10, accuracy: 0.001)
+    }
+
+    func testSmoothQuadraticReflectsPreviousControl() {
+        // Q control (5, 10) then T to (20, 0) reflects that control about (10, 0)
+        // → (15, -10). `boundingBox` is the control-point box.
+        let path = HumationPathParser.path(from: "M0 0 Q5 10 10 0 T20 0")
+        XCTAssertEqual(path.boundingBox.minX, 0, accuracy: 0.001)
+        XCTAssertEqual(path.boundingBox.maxX, 20, accuracy: 0.001)
+        XCTAssertEqual(path.boundingBox.minY, -10, accuracy: 0.001)
+        XCTAssertEqual(path.boundingBox.maxY, 10, accuracy: 0.001)
+        XCTAssertLessThan(path.boundingBoxOfPath.minY, 0)
+        XCTAssertGreaterThan(path.boundingBoxOfPath.minY, -10)
+    }
+
+    // MARK: Asset coverage
+
+    func testBundledPathsHaveNoArcs() throws {
+        let manifest = try XCTUnwrap(HumationManifestStore.shared)
+        let pattern = try NSRegularExpression(pattern: #"\bd="([^"]*)""#)
+        for part in manifest.parts {
+            for layer in part.layers {
+                guard let svg = layer.svg else { continue }
+                let ns = svg as NSString
+                let matches = pattern.matches(
+                    in: svg, range: NSRange(location: 0, length: ns.length)
+                )
+                for match in matches {
+                    let d = ns.substring(with: match.range(at: 1))
+                    let hasArc = d.contains { $0 == "A" || $0 == "a" }
+                    XCTAssertFalse(
+                        hasArc,
+                        "part \(part.name ?? part.id) uses unsupported arc command A/a"
+                    )
+                }
+            }
+        }
+    }
+
+    func testQuadraticAssetPartsRender() throws {
+        let manifest = try XCTUnwrap(HumationManifestStore.shared)
+        for name in ["bunny-ears", "camera", "calico-cat", "brown-tabby-cat"] {
+            let part = try XCTUnwrap(
+                manifest.parts.first { $0.name == name },
+                "missing part named \(name)"
+            )
+            let slot = try XCTUnwrap(HumationSelectionSlot(rawValue: part.selectionSlot))
+            var traits = HumationTraits(seed: "q-render")
+            traits.selections[slot] = part.id
+            let resolved = traits.resolved(against: manifest)
+            XCTAssertEqual(resolved.selections[slot], part.id)
+            let image = try XCTUnwrap(
+                HumationRenderer.render(resolved: resolved, manifest: manifest, pixels: 128)
+            )
+            XCTAssertEqual(image.width, 128)
+            XCTAssertEqual(image.height, 128)
+        }
     }
 
     func testContentBoundsForItem() throws {

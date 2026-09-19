@@ -3,8 +3,8 @@ import Foundation
 // MARK: - Manifest validation
 //
 // Catches author mistakes in custom/served asset packs before they render
-// wrong: SVG features the native renderer doesn't implement (arcs `A`,
-// quadratics `Q`/`T`), and structural references that don't resolve.
+// wrong: SVG features the native renderer doesn't implement (arcs `A`/`a`),
+// and structural references that don't resolve.
 
 public struct HumationValidationIssue: Sendable, CustomStringConvertible {
     public let partId: String
@@ -38,9 +38,9 @@ public enum HumationValidator {
                     add("unknown layerSlot '\(layer.layerSlot)'")
                 }
                 guard let svg = layer.svg else { continue }
-                for d in pathData(in: svg) where d.contains(where: { "AaQqTt".contains($0) }) {
+                for d in pathData(in: svg) where d.contains(where: { $0 == "A" || $0 == "a" }) {
                     add("layer '\(layer.layerSlot)' uses an unsupported path command "
-                        + "(arcs A/a or quadratics Q/q/T/t are not rendered)")
+                        + "(arcs A/a are not rendered)")
                     break
                 }
             }

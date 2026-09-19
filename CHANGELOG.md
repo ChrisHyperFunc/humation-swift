@@ -1,5 +1,15 @@
 # Changelog
 
+## Unreleased
+
+- Update bundled Humation 1 assets to `@humation/assets-humation-1` 1.0.3
+  (consistent 1.5 outline widths: crab-headband, goggles, round glasses,
+  bunny-ears, camera, calico and brown-tabby cats; inline attributes instead
+  of `<style>` classes).
+- Add SVG path parser support for quadratic Bézier commands (`Q`/`q`/`T`/`t`)
+  required by those assets. `HumationValidator` now flags only arcs (`A`/`a`)
+  as unsupported path commands.
+
 ## 1.2.0 - 2026-07-05
 
 - Add random avatars: `HumationProfile.random(in:using:)` / `random(in:)` and the

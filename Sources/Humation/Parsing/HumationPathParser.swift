@@ -4,8 +4,8 @@ import Foundation
 // MARK: - SVG path `d` parser
 //
 // Supports exactly the command set present in the asset library: M/m L/l H/h
-// V/v C/c S/s Z/z (absolute + relative). No arcs (A/a) or quadratics (Q/q/T/t)
-// exist in the data — see the asset scan. Handles SVG number quirks: implicit
+// V/v C/c S/s Q/q T/t Z/z (absolute + relative). No arcs (A/a) exist in the
+// data — see the asset scan. Handles SVG number quirks: implicit
 // command repetition, an implicit L after M, and concatenated numbers
 // (`1.5.3` → 1.5, 0.3 ; `3-4` → 3, -4).
 
@@ -17,6 +17,7 @@ enum HumationPathParser {
         var current = CGPoint.zero
         var subpathStart = CGPoint.zero
         var lastCubicControl: CGPoint? = nil
+        var lastQuadControl: CGPoint? = nil
         var command: Character? = nil
 
         func num() -> CGFloat? { tokens.nextNumber() }
@@ -48,6 +49,7 @@ enum HumationPathParser {
                 current = p
                 subpathStart = p
                 lastCubicControl = nil
+                lastQuadControl = nil
                 // Subsequent pairs after an M are implicit L commands.
                 command = isRelative ? "l" : "L"
 
@@ -57,6 +59,7 @@ enum HumationPathParser {
                 path.addLine(to: p)
                 current = p
                 lastCubicControl = nil
+                lastQuadControl = nil
 
             case "H":
                 guard let x = num() else { return path }
@@ -65,6 +68,7 @@ enum HumationPathParser {
                 path.addLine(to: p)
                 current = p
                 lastCubicControl = nil
+                lastQuadControl = nil
 
             case "V":
                 guard let y = num() else { return path }
@@ -73,6 +77,7 @@ enum HumationPathParser {
                 path.addLine(to: p)
                 current = p
                 lastCubicControl = nil
+                lastQuadControl = nil
 
             case "C":
                 guard var c1 = pair(), var c2 = pair(), var end = pair() else { return path }
@@ -84,6 +89,7 @@ enum HumationPathParser {
                 path.addCurve(to: end, control1: c1, control2: c2)
                 current = end
                 lastCubicControl = c2
+                lastQuadControl = nil
 
             case "S":
                 // Smooth cubic: first control is the reflection of the previous
@@ -102,11 +108,42 @@ enum HumationPathParser {
                 path.addCurve(to: end, control1: c1, control2: c2)
                 current = end
                 lastCubicControl = c2
+                lastQuadControl = nil
+
+            case "Q":
+                guard var control = pair(), var end = pair() else { return path }
+                if isRelative {
+                    control = CGPoint(x: current.x + control.x, y: current.y + control.y)
+                    end = CGPoint(x: current.x + end.x, y: current.y + end.y)
+                }
+                path.addQuadCurve(to: end, control: control)
+                current = end
+                lastQuadControl = control
+                lastCubicControl = nil
+
+            case "T":
+                // Smooth quadratic: control is the reflection of the previous
+                // quadratic control about the current point.
+                guard var end = pair() else { return path }
+                if isRelative {
+                    end = CGPoint(x: current.x + end.x, y: current.y + end.y)
+                }
+                let control: CGPoint
+                if let last = lastQuadControl {
+                    control = CGPoint(x: 2 * current.x - last.x, y: 2 * current.y - last.y)
+                } else {
+                    control = current
+                }
+                path.addQuadCurve(to: end, control: control)
+                current = end
+                lastQuadControl = control
+                lastCubicControl = nil
 
             case "Z":
                 path.closeSubpath()
                 current = subpathStart
                 lastCubicControl = nil
+                lastQuadControl = nil
 
             default:
                 return path // unsupported command — stop safely
@@ -124,7 +161,8 @@ private struct Tokenizer {
 
     private static let commandSet: Set<Character> = [
         "M", "m", "L", "l", "H", "h", "V", "v", "C", "c", "S", "s", "Z", "z",
-        "Q", "q", "T", "t", "A", "a", // not produced by assets, but recognised as commands
+        "Q", "q", "T", "t",
+        "A", "a", // arcs not produced by assets, but recognised as commands
     ]
 
     init(_ string: String) {
