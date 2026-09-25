@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Localize the avatar editor in the package string catalog. Visible labels follow the host locale and fall back to the English key.
+
 - Update bundled Humation 1 assets to `@humation/assets-humation-1` 1.0.3
   (consistent 1.5 outline widths: crab-headband, goggles, round glasses,
   bunny-ears, camera, calico and brown-tabby cats; inline attributes instead

@@ -3,6 +3,7 @@ import PackageDescription
 
 let package = Package(
     name: "Humation",
+    defaultLocalization: "en",
     platforms: [
         .iOS(.v15),
         .macOS(.v12),
@@ -22,7 +23,10 @@ let package = Package(
         ),
         .target(
             name: "HumationEditor",
-            dependencies: ["Humation"]
+            dependencies: ["Humation"],
+            resources: [
+                .process("Localizable.xcstrings"),
+            ]
         ),
         .testTarget(
             name: "HumationTests",

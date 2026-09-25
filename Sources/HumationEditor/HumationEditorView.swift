@@ -3,6 +3,7 @@ import SwiftUI
 
 public struct HumationEditorView: View {
     @Environment(\.colorScheme) private var colorScheme
+    @Environment(\.locale) private var locale
     @Binding private var profile: HumationProfile
     @State private var draft: ResolvedHumation?
     @State private var selectedTabID: String
@@ -40,7 +41,7 @@ public struct HumationEditorView: View {
             if let manifest = Humation.manifest {
                 content(manifest: manifest, draft: currentDraft(in: manifest))
             } else {
-                Text("Humation assets unavailable")
+                Text(copy("Humation assets unavailable"))
                     .font(configuration.font(15, .semibold))
                     .foregroundStyle(.secondary)
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -67,9 +68,9 @@ public struct HumationEditorView: View {
     }
 
     private var tabBar: some View {
-        Picker("Parts", selection: $selectedTabID) {
+        Picker(copy("Parts"), selection: $selectedTabID) {
             ForEach(configuration.tabs) { tab in
-                Text(tab.title)
+                Text(copy(tab.title))
                     .font(configuration.font(15, .semibold))
                     .tag(tab.id)
             }
@@ -92,7 +93,7 @@ public struct HumationEditorView: View {
             Button {
                 randomize(manifest: manifest)
             } label: {
-                Label("Randomize", systemImage: "arrow.triangle.2.circlepath")
+                Label(copy("Randomize"), systemImage: "arrow.triangle.2.circlepath")
                     .font(configuration.font(15, .semibold))
                     .lineLimit(1)
                     .minimumScaleFactor(0.82)
@@ -113,7 +114,7 @@ public struct HumationEditorView: View {
                     .id(Self.scrollTopID)
 
                 if !globalColorSlots.isEmpty {
-                    colorSection(title: "Colors", colorSlots: globalColorSlots, draft: draft, manifest: manifest)
+                    colorSection(title: copy("Colors"), colorSlots: globalColorSlots, draft: draft, manifest: manifest)
                         .padding(.bottom, 18)
                 }
 
@@ -147,7 +148,7 @@ public struct HumationEditorView: View {
                     .padding(.bottom, 2)
             }
 
-            Text(slotTitle(slot))
+            Text(copy(slotTitle(slot)))
                 .font(configuration.font(14, .heavy))
                 .foregroundStyle(.secondary)
                 .padding(.horizontal, Self.horizontalInset)
@@ -206,7 +207,7 @@ public struct HumationEditorView: View {
         }
         .buttonStyle(.plain)
         .accessibilityLabel(part.name ?? part.id)
-        .accessibilityValue(isSelected ? "Selected" : "")
+        .accessibilityValue(isSelected ? copy("Selected") : "")
     }
 
     private func colorSection(
@@ -233,7 +234,7 @@ public struct HumationEditorView: View {
         VStack(alignment: .leading, spacing: 14) {
             ForEach(colorSlots, id: \.self) { colorSlot in
                 VStack(alignment: .leading, spacing: 8) {
-                    Text(colorTitle(colorSlot))
+                    Text(copy(colorTitle(colorSlot)))
                         .font(configuration.font(13, .heavy))
                         .foregroundStyle(Color.secondary)
                         .padding(.horizontal, Self.horizontalInset)
@@ -283,8 +284,8 @@ public struct HumationEditorView: View {
                 )
         }
         .buttonStyle(.plain)
-        .accessibilityLabel(colorTitle(colorSlot))
-        .accessibilityValue(isSelected ? "Selected" : "")
+        .accessibilityLabel(copy(colorTitle(colorSlot)))
+        .accessibilityValue(isSelected ? copy("Selected") : "")
     }
 
     private var selectedTab: HumationEditorConfiguration.Tab? {
@@ -401,6 +402,14 @@ public struct HumationEditorView: View {
 
     private func commit(_ resolved: ResolvedHumation) {
         profile = HumationProfile(resolved: resolved)
+    }
+
+    private func copy(_ key: String) -> String {
+        let value = String.LocalizationValue(stringLiteral: key)
+        if #available(iOS 16, macOS 13, tvOS 16, visionOS 1, *) {
+            return String(localized: value, bundle: .module, locale: locale)
+        }
+        return String(localized: value, bundle: .module)
     }
 
     private func colorTitle(_ slot: HumationColorSlot) -> String {
